@@ -6,6 +6,7 @@
 """
 
 from firebird.driver import connect, ServerConfig
+import socket
 
 
 def main():
@@ -18,15 +19,37 @@ def main():
     username = "FADMIN_KRS"
     password = "adminkpp"
     
-    # Формирование строки подключения
-    # Формат: host/port:database
-    dsn = f"{host}/{port}:{database}"
+    print(f"\nПопытка подключения к {host}:{port}/{database}...")
     
-    print(f"\nПопытка подключения к {dsn}...")
+    # Проверка доступности порта
+    print("Проверка доступности порта...")
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(5)
+    result = sock.connect_ex((host, port))
+    sock.close()
+    
+    if result != 0:
+        print(f"Ошибка: Порт {host}:{port} недоступен!")
+        print("Возможные причины:")
+        print("  - Сервер выключен или не отвечает")
+        print("  - Брандмауэр блокирует соединение")
+        print("  - Неверный IP-адрес")
+        return
+    
+    print(f"Порт {host}:{port} открыт.")
     
     try:
-        # Подключение к базе данных
-        with connect(dsn, user=username, password=password) as con:
+        # Попытка подключения через ServerConfig (более явный способ)
+        config = ServerConfig(
+            host=host,
+            port=port,
+            database=database,
+            user=username,
+            password=password
+        )
+        
+        print("Попытка подключения через ServerConfig...")
+        with connect(config) as con:
             print("Подключение успешно установлено!")
             
             # Получение информации о базе данных
@@ -60,12 +83,12 @@ def main():
             cursor.close()
             
     except Exception as e:
-        print(f"\nОшибка подключения: {e}")
+        print(f"\nОшибка подключения: {type(e).__name__}: {e}")
         print("\nВозможные причины:")
-        print("  - Неверный логин или пароль")
-        print("  - Сервер Firebird недоступен по сети")
-        print("  - База данных не существует")
-        print("  - Проблемы с сетевым подключением")
+        print("  - Неверное имя базы данных (путь на сервере)")
+        print("  - Пользователь не имеет прав доступа к этой БД")
+        print("  - База данных не зарегистрирована в aliases.conf")
+        print("  - Требуется полный путь к файлу БД на сервере")
 
 
 if __name__ == "__main__":
